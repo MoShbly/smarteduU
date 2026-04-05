@@ -1,0 +1,18 @@
+{
+  "name": "smart-classroom-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend for Smart Classroom graduation project",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "framer-motion": "^11.11.9",
+    "lucide-react": "^0.454.0",
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

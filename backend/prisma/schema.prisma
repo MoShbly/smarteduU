@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  teacher
+  student
+}
+
+enum EnrollmentStatus {
+  active
+  completed
+  dropped
+}
+
+enum AssignmentStatus {
+  draft
+  published
+  closed
+}
+
+enum SubmissionStatus {
+  submitted
+  reviewed
+  returned
+}
+
+model User {
+  id                 String         @id @default(uuid()) @db.Uuid
+  name               String
+  email              String         @unique
+  passwordHash       String         @map("password_hash")
+  role               UserRole
+  avatarUrl          String?        @map("avatar_url")
+  isActive           Boolean        @default(true) @map("is_active")
+  taughtCourses      Course[]       @relation("TeacherCourses")
+  enrollments        Enrollment[]
+  createdAssignments Assignment[]   @relation("AssignmentCreator")
+  submissions        Submission[]
+  activityLogs       ActivityLog[]  @relation("ActivityActor")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Course {
+  id          String       @id @default(uuid()) @db.Uuid
+  title       String
+  description String       @default("")
+  subject     String       @default("")
+  code        String       @unique
+  teacherId   String       @map("teacher_id") @db.Uuid
+  teacher     User         @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Restrict)
+  isArchived  Boolean      @default(false) @map("is_archived")
+  enrollments Enrollment[]
+  assignments Assignment[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([teacherId])
+  @@map("courses")
+}
+
+model Enrollment {
+  id         String           @id @default(uuid()) @db.Uuid
+  courseId   String           @map("course_id") @db.Uuid
+  studentId  String           @map("student_id") @db.Uuid
+  status     EnrollmentStatus @default(active)
+  enrolledAt DateTime         @default(now()) @map("enrolled_at")
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student    User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  @@unique([courseId, studentId])
+  @@index([studentId])
+  @@map("enrollments")
+}
+
+model Assignment {
+  id          String           @id @default(uuid()) @db.Uuid
+  courseId    String           @map("course_id") @db.Uuid
+  title       String
+  description String           @default("")
+  dueDate     DateTime         @map("due_date")
+  maxScore    Int              @default(100) @map("max_score")
+  createdById String           @map("created_by_id") @db.Uuid
+  status      AssignmentStatus @default(published)
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdBy   User             @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  submissions Submission[]
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([courseId])
+  @@index([createdById])
+  @@map("assignments")
+}
+
+model Submission {
+  id           String           @id @default(uuid()) @db.Uuid
+  assignmentId String           @map("assignment_id") @db.Uuid
+  studentId    String           @map("student_id") @db.Uuid
+  content      String
+  status       SubmissionStatus @default(submitted)
+  grade        Int?
+  feedback     String           @default("")
+  submittedAt  DateTime         @default(now()) @map("submitted_at")
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@map("submissions")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  details    Json?
+  actor      User     @relation("ActivityActor", fields: [actorId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
+
