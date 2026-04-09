@@ -1,7 +1,8 @@
 'use client';
 
 import { AlertTriangle, CircleCheckBig, Inbox, LoaderCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+
+import EmptyState from './EmptyState';
 
 const iconMap = {
   empty: Inbox,
@@ -19,22 +20,6 @@ export default function StatePanel({
 }) {
   const Icon = iconMap[variant] || Inbox;
 
-  return (
-    <motion.div
-      className={`state-panel ${compact ? 'compact' : ''} ${variant}`}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-    >
-      <span className={`state-icon ${variant}`}>
-        <Icon size={compact ? 18 : 22} className={variant === 'loading' ? 'spin' : ''} />
-      </span>
-      <div>
-        <strong>{title}</strong>
-        <p>{description}</p>
-      </div>
-      {action || null}
-    </motion.div>
-  );
+  return <EmptyState icon={Icon} title={title} description={description} action={action} compact={compact} tone={variant} />;
 }
 

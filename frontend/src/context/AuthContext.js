@@ -1,16 +1,47 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 
-import { apiRequest } from '@/lib/api';
 import { clearAuthSession, getStoredSession, setAuthSession } from '@/lib/auth';
+import { authService } from '@/services/auth.service';
 
 const AuthContext = createContext(null);
 
+const initialState = {
+  user: null,
+  token: '',
+  loading: true
+};
+
+function authReducer(state, action) {
+  switch (action.type) {
+    case 'RESTORE_SESSION_SUCCESS':
+    case 'AUTH_SUCCESS':
+      return {
+        ...state,
+        loading: false,
+        user: action.payload.user,
+        token: action.payload.token
+      };
+    case 'AUTH_CLEAR':
+      return {
+        ...state,
+        loading: false,
+        user: null,
+        token: ''
+      };
+    case 'SET_LOADING':
+      return {
+        ...state,
+        loading: action.payload
+      };
+    default:
+      return state;
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
     let isMounted = true;
@@ -20,33 +51,31 @@ export function AuthProvider({ children }) {
 
       if (!session?.token) {
         if (isMounted) {
-          setLoading(false);
+          dispatch({ type: 'SET_LOADING', payload: false });
         }
         return;
       }
 
       try {
-        const response = await apiRequest('/auth/me', {
-          token: session.token
-        });
+        const response = await authService.me(session.token);
 
         if (!isMounted) {
           return;
         }
 
-        setToken(session.token);
-        setUser(response.data.user);
         setAuthSession(session.token, response.data.user);
+        dispatch({
+          type: 'RESTORE_SESSION_SUCCESS',
+          payload: {
+            user: response.data.user,
+            token: session.token
+          }
+        });
       } catch (error) {
         clearAuthSession();
 
         if (isMounted) {
-          setUser(null);
-          setToken('');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
+          dispatch({ type: 'AUTH_CLEAR' });
         }
       }
     };
@@ -59,47 +88,53 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (payload) => {
-    const response = await apiRequest('/auth/login', {
-      method: 'POST',
-      body: payload
-    });
+    const response = await authService.login(payload);
 
     const authSession = response.data;
     setAuthSession(authSession.token, authSession.user);
-    setToken(authSession.token);
-    setUser(authSession.user);
+    dispatch({
+      type: 'AUTH_SUCCESS',
+      payload: {
+        user: authSession.user,
+        token: authSession.token
+      }
+    });
 
     return authSession;
   };
 
   const register = async (payload) => {
-    const response = await apiRequest('/auth/register', {
-      method: 'POST',
-      body: payload
-    });
+    const response = await authService.register(payload);
 
     const authSession = response.data;
     setAuthSession(authSession.token, authSession.user);
-    setToken(authSession.token);
-    setUser(authSession.user);
+    dispatch({
+      type: 'AUTH_SUCCESS',
+      payload: {
+        user: authSession.user,
+        token: authSession.token
+      }
+    });
 
     return authSession;
   };
 
   const logout = () => {
     clearAuthSession();
-    setToken('');
-    setUser(null);
+    dispatch({ type: 'AUTH_CLEAR' });
   };
 
-  const value = {
-    user,
-    token,
-    loading,
-    login,
-    register,
-    logout
-  };
+  const value = useMemo(
+    () => ({
+      user: state.user,
+      token: state.token,
+      loading: state.loading,
+      login,
+      register,
+      logout
+    }),
+    [state.user, state.token, state.loading]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

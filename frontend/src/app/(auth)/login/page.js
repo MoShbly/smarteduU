@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import AuthForm from '@/components/auth/AuthForm';
-import AnimatedPage from '@/components/motion/AnimatedPage';
+import AuthPageLayout from '@/components/auth/AuthPageLayout';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
+  const t = useTranslations('auth');
   const router = useRouter();
   const { login } = useAuth();
   const [error, setError] = useState('');
@@ -20,7 +22,7 @@ export default function LoginPage() {
 
     try {
       const result = await login(values);
-      setSuccessMessage('Login successful. Redirecting to your dashboard...');
+      setSuccessMessage(t('loginSuccess'));
       await new Promise((resolve) => setTimeout(resolve, 350));
       router.replace(result.user.role === 'teacher' ? '/teacher' : '/student');
     } catch (submitError) {
@@ -29,44 +31,29 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="auth-screen">
-      <AnimatedPage className="auth-shell">
-        <section className="auth-spotlight">
-          <span className="eyebrow">Secure Sign In</span>
-          <h2>Return to your classroom workspace with a smoother academic dashboard.</h2>
-          <p>
-            Smart Classroom is designed to present your graduation project as a modern academic
-            SaaS platform with clear role separation, responsive dashboards, and structured data.
-          </p>
-          <ul>
-            <li>JWT-protected access for teacher and student roles</li>
-            <li>Responsive dashboard experience for project demo sessions</li>
-            <li>Professional UI styling with subtle motion and hierarchy</li>
-          </ul>
-        </section>
-
-        <section className="auth-panel">
-          <header>
-            <span className="eyebrow">Welcome Back</span>
-            <h1>Login</h1>
-            <p>Access the Smart Classroom dashboard that matches your role.</p>
-          </header>
-
-          <AuthForm
-            mode="login"
-            onSubmit={handleSubmit}
-            error={error}
-            successMessage={successMessage}
-          />
-
-          <p className="auth-footer">
-            Do not have an account?{' '}
-            <Link href="/register" className="text-link">
-              Create one
-            </Link>
-          </p>
-        </section>
-      </AnimatedPage>
-    </main>
+    <AuthPageLayout
+      eyebrow={t('secureSignIn')}
+      title={t('spotlightLoginTitle')}
+      description={t('spotlightLoginDescription')}
+      bullets={[t('loginBullet1'), t('loginBullet2'), t('loginBullet3')]}
+      headerEyebrow={t('welcomeBack')}
+      headerTitle={t('login')}
+      headerDescription={t('loginDescription')}
+      footer={
+        <p className="auth-footer">
+          {t('noAccount')}{' '}
+          <Link href="/register" className="text-link">
+            {t('createOne')}
+          </Link>
+        </p>
+      }
+    >
+      <AuthForm
+        mode="login"
+        onSubmit={handleSubmit}
+        error={error}
+        successMessage={successMessage}
+      />
+    </AuthPageLayout>
   );
 }

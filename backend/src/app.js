@@ -4,11 +4,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { env } from './config/env.js';
+import { apiRateLimiter } from './middlewares/rate-limit.middleware.js';
+import { sanitizeRequest } from './middlewares/sanitize.middleware.js';
 import ApiError from './utils/ApiError.js';
 import { errorHandler, notFound } from './middlewares/error.middleware.js';
 import apiRouter from './routes/index.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
 const allowedOrigins = env.clientUrl.split(',').map((origin) => origin.trim());
 
@@ -16,19 +19,29 @@ app.disable('x-powered-by');
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || origin === 'http://localhost:3002') {
         return callback(null, true);
       }
 
       return callback(new ApiError(403, 'Origin not allowed by CORS'));
     },
-    credentials: true
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
   })
 );
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'no-referrer' }
+  })
+);
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '16kb' }));
+app.use(express.urlencoded({ extended: true, limit: '16kb' }));
+app.use(sanitizeRequest);
+app.use('/api', apiRateLimiter);
 
 app.get('/health', (req, res) => {
   res.status(200).json({

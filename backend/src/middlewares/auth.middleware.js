@@ -11,8 +11,18 @@ export const protect = catchAsync(async (req, res, next) => {
     throw new ApiError(401, 'Authentication token is missing');
   }
 
-  const token = authHeader.replace('Bearer ', '');
-  const decoded = verifyToken(token);
+  const token = authHeader.slice(7).trim();
+  let decoded;
+
+  try {
+    decoded = verifyToken(token);
+  } catch (error) {
+    throw new ApiError(401, 'Invalid or expired authentication token');
+  }
+
+  if (!decoded?.sub) {
+    throw new ApiError(401, 'Invalid authentication token payload');
+  }
 
   const user = await prisma.user.findUnique({
     where: {

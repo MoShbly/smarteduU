@@ -1,0 +1,53 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: smart-classroom-frontend-prod
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: smart-classroom-backend-prod
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=postgresql://smartclassroom:smartclassroom@postgres:5432/smart_classroom?schema=public
+      - JWT_SECRET=production_secret_key_change_me
+      - JWT_EXPIRES_IN=1d
+      - CLIENT_URL=http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: smart-classroom-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_DB: smart_classroom
+      POSTGRES_USER: smartclassroom
+      POSTGRES_PASSWORD: smartclassroom
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U smartclassroom -d smart_classroom']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_prod_data:
