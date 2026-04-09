@@ -57,11 +57,13 @@ export const submissionInclude = {
       id: true,
       title: true,
       dueDate: true,
+      maxScore: true,
       course: {
         select: {
           id: true,
           title: true,
-          code: true
+          code: true,
+          subject: true
         }
       }
     }

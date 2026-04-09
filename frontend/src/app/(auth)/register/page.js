@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import AuthForm from '@/components/auth/AuthForm';
-import AnimatedPage from '@/components/motion/AnimatedPage';
+import AuthPageLayout from '@/components/auth/AuthPageLayout';
 import { useAuth } from '@/context/AuthContext';
 
 export default function RegisterPage() {
+  const t = useTranslations('auth');
   const router = useRouter();
   const { register } = useAuth();
   const [error, setError] = useState('');
@@ -20,7 +22,7 @@ export default function RegisterPage() {
 
     try {
       const result = await register(values);
-      setSuccessMessage('Account created successfully. Redirecting...');
+      setSuccessMessage(t('registerSuccess'));
       await new Promise((resolve) => setTimeout(resolve, 350));
       router.replace(result.user.role === 'teacher' ? '/teacher' : '/student');
     } catch (submitError) {
@@ -29,44 +31,29 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="auth-screen">
-      <AnimatedPage className="auth-shell">
-        <section className="auth-spotlight">
-          <span className="eyebrow">Account Setup</span>
-          <h2>Start your Smart Classroom journey with a role-aware academic workspace.</h2>
-          <p>
-            Create either a teacher or student profile and enter a dashboard experience designed to
-            feel polished, responsive, and ready for a graduation project demonstration.
-          </p>
-          <ul>
-            <li>Teacher accounts manage courses, assignments, and classroom activity</li>
-            <li>Student accounts follow coursework, submissions, and progress</li>
-            <li>Structured relational backend ready for future development phases</li>
-          </ul>
-        </section>
-
-        <section className="auth-panel">
-          <header>
-            <span className="eyebrow">New Account</span>
-            <h1>Register</h1>
-            <p>Create a teacher or student account for the Smart Classroom MVP.</p>
-          </header>
-
-          <AuthForm
-            mode="register"
-            onSubmit={handleSubmit}
-            error={error}
-            successMessage={successMessage}
-          />
-
-          <p className="auth-footer">
-            Already registered?{' '}
-            <Link href="/login" className="text-link">
-              Login here
-            </Link>
-          </p>
-        </section>
-      </AnimatedPage>
-    </main>
+    <AuthPageLayout
+      eyebrow={t('accountSetup')}
+      title={t('spotlightRegisterTitle')}
+      description={t('spotlightRegisterDescription')}
+      bullets={[t('registerBullet1'), t('registerBullet2'), t('registerBullet3')]}
+      headerEyebrow={t('newAccount')}
+      headerTitle={t('register')}
+      headerDescription={t('registerDescription')}
+      footer={
+        <p className="auth-footer">
+          {t('alreadyRegistered')}{' '}
+          <Link href="/login" className="text-link">
+            {t('loginHere')}
+          </Link>
+        </p>
+      }
+    >
+      <AuthForm
+        mode="register"
+        onSubmit={handleSubmit}
+        error={error}
+        successMessage={successMessage}
+      />
+    </AuthPageLayout>
   );
 }

@@ -1,6 +1,8 @@
 import { Manrope, Sora } from 'next/font/google';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 
-import { AuthProvider } from '@/context/AuthContext';
+import AppProviders from '@/providers/AppProviders';
 
 import './globals.css';
 
@@ -16,14 +18,19 @@ const sora = Sora({
 
 export const metadata = {
   title: 'Smart Classroom',
-  description: 'A polished graduation-project foundation for a classroom management platform'
+  description: 'A modern academic operations platform for courses, assignments, and student workflows'
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body className={`${manrope.variable} ${sora.variable}`}>
-        <AuthProvider>{children}</AuthProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <AppProviders>{children}</AppProviders>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

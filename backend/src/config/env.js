@@ -8,6 +8,12 @@ export const env = {
   databaseUrl: process.env.DATABASE_URL || '',
   jwtSecret: process.env.JWT_SECRET || '',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  jwtIssuer: process.env.JWT_ISSUER || String('smart-classroom-api'),
+  jwtAudience: process.env.JWT_AUDIENCE || String('smart-classroom-app'),
+  apiRateLimitWindowMs: Number(process.env.API_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
+  apiRateLimitMax: Number(process.env.API_RATE_LIMIT_MAX || 300),
+  authRateLimitWindowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000),
+  authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX || 20),
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000'
 };
 

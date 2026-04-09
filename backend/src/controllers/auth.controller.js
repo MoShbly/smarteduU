@@ -1,6 +1,5 @@
 import bcrypt from 'bcryptjs';
 
-import { ROLE_VALUES } from '../constants/roles.js';
 import prisma from '../lib/prisma.js';
 import { logActivity } from '../services/activity-log.service.js';
 import ApiError from '../utils/ApiError.js';
@@ -16,18 +15,6 @@ const buildAuthResponse = (user) => ({
 
 export const register = catchAsync(async (req, res) => {
   const { name, email, password, role } = req.body;
-
-  if (!name || !email || !password || !role) {
-    throw new ApiError(400, 'Name, email, password, and role are required');
-  }
-
-  if (!ROLE_VALUES.includes(role)) {
-    throw new ApiError(400, 'Role must be either teacher or student');
-  }
-
-  if (password.length < 6) {
-    throw new ApiError(400, 'Password must be at least 6 characters long');
-  }
 
   const normalizedEmail = email.toLowerCase().trim();
   const existingUser = await prisma.user.findUnique({
@@ -73,10 +60,6 @@ export const register = catchAsync(async (req, res) => {
 
 export const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    throw new ApiError(400, 'Email and password are required');
-  }
 
   const user = await prisma.user.findUnique({
     where: {

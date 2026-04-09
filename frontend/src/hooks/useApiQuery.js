@@ -29,7 +29,7 @@ export function useApiQuery(queryFn, dependencies = [], options = {}) {
         }
       } catch (requestError) {
         if (isMounted) {
-          setError(requestError.message || 'Something went wrong');
+          setError(requestError.message || '');
         }
       } finally {
         if (isMounted) {

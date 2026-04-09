@@ -1,7 +1,24 @@
-const TOKEN_KEY = 'smart_classroom_token';
+const TOKEN_KEY = process.env.NEXT_PUBLIC_TOKEN_KEY || String('smart_classroom_token');
 const USER_KEY = 'smart_classroom_user';
 const ROLE_COOKIE_KEY = 'smart_classroom_role';
 const COOKIE_DURATION = 60 * 60 * 24 * 7;
+
+const getCookieValue = (name) => {
+  if (typeof document === 'undefined') {
+    return '';
+  }
+
+  const token = document.cookie
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${name}=`));
+
+  if (!token) {
+    return '';
+  }
+
+  return decodeURIComponent(token.split('=').slice(1).join('='));
+};
 
 const setCookie = (name, value) => {
   const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; secure' : '';
@@ -17,8 +34,7 @@ export const setAuthSession = (token, user) => {
     return;
   }
 
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
   setCookie(TOKEN_KEY, token);
   setCookie(ROLE_COOKIE_KEY, user.role);
 };
@@ -28,11 +44,18 @@ export const getStoredSession = () => {
     return null;
   }
 
-  const token = localStorage.getItem(TOKEN_KEY);
-  const user = localStorage.getItem(USER_KEY);
+  const token = getCookieValue(TOKEN_KEY);
+  const user = sessionStorage.getItem(USER_KEY);
 
-  if (!token || !user) {
+  if (!token) {
     return null;
+  }
+
+  if (!user) {
+    return {
+      token,
+      user: null
+    };
   }
 
   try {
@@ -51,8 +74,7 @@ export const clearAuthSession = () => {
     return;
   }
 
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(USER_KEY);
   clearCookie(TOKEN_KEY);
   clearCookie(ROLE_COOKIE_KEY);
 };

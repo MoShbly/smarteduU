@@ -25,9 +25,9 @@ enum AssignmentStatus {
 }
 
 enum SubmissionStatus {
+  pending
   submitted
-  reviewed
-  returned
+  graded
 }
 
 model User {
@@ -108,7 +108,7 @@ model Submission {
   assignmentId String           @map("assignment_id") @db.Uuid
   studentId    String           @map("student_id") @db.Uuid
   content      String
-  status       SubmissionStatus @default(submitted)
+  status       SubmissionStatus @default(pending)
   grade        Int?
   feedback     String           @default("")
   submittedAt  DateTime         @default(now()) @map("submitted_at")
