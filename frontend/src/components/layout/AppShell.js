@@ -1,22 +1,26 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import { MOTION_EASE_SOFT, getRevealMotion } from '@/lib/motion';
 
 export default function AppShell({ title, description, sections = [], actions, children }) {
   const t = useTranslations('common');
+  const shouldReduceMotion = useReducedMotion();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <motion.div
       className="app-shell"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25 }}
+      {...getRevealMotion(shouldReduceMotion, {
+        y: 10,
+        scale: 1,
+        duration: 0.26
+      })}
     >
       <Sidebar
         isOpen={sidebarOpen}
@@ -30,7 +34,7 @@ export default function AppShell({ title, description, sections = [], actions, c
         onClick={() => setSidebarOpen(false)}
         initial={false}
         animate={{ opacity: sidebarOpen ? 1 : 0 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.2, ease: MOTION_EASE_SOFT }}
       />
 
       <main className="main-panel">

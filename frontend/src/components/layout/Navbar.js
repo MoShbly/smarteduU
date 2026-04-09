@@ -1,7 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { ChevronRight, LogOut, Menu } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { LogOut, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -10,6 +10,7 @@ import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import { MOTION_EASE, getPressMotion, getRevealMotion } from '@/lib/motion';
 
 const getInitials = (name = '') =>
   name
@@ -22,6 +23,7 @@ const getInitials = (name = '') =>
 export default function Navbar({ title, description, actions, onMenuToggle }) {
   const tCommon = useTranslations('common');
   const tNav = useTranslations('nav');
+  const shouldReduceMotion = useReducedMotion();
   const router = useRouter();
   const { logout, user } = useAuth();
 
@@ -33,9 +35,11 @@ export default function Navbar({ title, description, actions, onMenuToggle }) {
   return (
     <motion.header
       className="topbar"
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.26 }}
+      {...getRevealMotion(shouldReduceMotion, {
+        y: -10,
+        scale: 1,
+        duration: 0.3
+      })}
     >
       <div className="topbar-row">
         <div className="topbar-meta">
@@ -44,7 +48,8 @@ export default function Navbar({ title, description, actions, onMenuToggle }) {
             className="menu-trigger"
             onClick={onMenuToggle}
             aria-label={tCommon('openNavigation')}
-            whileTap={{ scale: 0.96 }}
+            whileTap={getPressMotion(shouldReduceMotion)}
+            transition={{ duration: 0.18, ease: MOTION_EASE }}
           >
             <Menu size={18} />
           </motion.button>
@@ -55,13 +60,8 @@ export default function Navbar({ title, description, actions, onMenuToggle }) {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.04 }}
           >
-            <div className="topbar-breadcrumbs" aria-label={tNav('dashboardHome')}>
-              <span>{tCommon('appName')}</span>
-              <ChevronRight size={14} aria-hidden="true" />
-              <span>{tNav('dashboardHome')}</span>
-            </div>
             <h1 className="topbar-title">{title}</h1>
-            <p className="topbar-description">{description}</p>
+            {description ? <p className="topbar-description">{description}</p> : null}
           </motion.div>
         </div>
 

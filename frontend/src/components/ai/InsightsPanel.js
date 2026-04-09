@@ -1,84 +1,38 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { AlertTriangle, ShieldAlert, Sparkles, Trophy } from 'lucide-react';
+import { AlertTriangle, BarChart3, Sparkles, Trophy } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import Card from '@/components/ui/Card';
+import EmptyState from '@/components/ui/EmptyState';
 import Skeleton from '@/components/ui/Skeleton';
 
 const insightTypeMap = {
-  warning: {
-    icon: AlertTriangle,
-    label: 'Attention needed'
-  },
-  success: {
-    icon: Trophy,
-    label: 'Positive signal'
-  },
-  neutral: {
-    icon: Sparkles,
-    label: 'Class insight'
-  }
+  warning: AlertTriangle,
+  success: Trophy,
+  neutral: Sparkles
 };
 
-const glanceCards = (weakStudents, topStudents, riskStudents) => [
-  {
-    id: 'risk',
-    label: 'At risk',
-    value: riskStudents.length,
-    hint: 'Missing recent work',
-    names: riskStudents.map((student) => student.name),
-    icon: ShieldAlert,
-    tone: 'warning'
-  },
-  {
-    id: 'support',
-    label: 'Need support',
-    value: weakStudents.length,
-    hint: 'Low scores or missed work',
-    names: weakStudents.map((student) => student.name),
-    icon: AlertTriangle,
-    tone: 'warning'
-  },
-  {
-    id: 'top',
-    label: 'Top performers',
-    value: topStudents.length,
-    hint: 'Strong recent grades',
-    names: topStudents.map((student) => student.name),
-    icon: Trophy,
-    tone: 'success'
-  }
-];
-
-const formatPreviewNames = (names = []) => {
-  if (!names.length) {
-    return 'No students right now';
-  }
-
-  if (names.length <= 2) {
-    return names.join(', ');
-  }
-
-  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
-};
+const fallbackCardIcon = BarChart3;
 
 export default function InsightsPanel({
   loading = false,
+  title,
+  description,
   insights = [],
-  weakStudents = [],
-  topStudents = [],
-  riskStudents = []
+  cards = []
 }) {
-  const studentCards = glanceCards(weakStudents, topStudents, riskStudents);
+  const t = useTranslations('insightsPanel');
+  const hasAnySignals = insights.length > 0 || cards.length > 0;
 
   return (
     <Card className="ai-insights-panel" tone="soft">
       <div className="ai-panel-head">
         <div className="ai-panel-copy">
-          <span className="ai-panel-eyebrow">AI-style student analytics</span>
-          <h3>Student intelligence</h3>
-          <p>Fast signals from grades and recent submissions.</p>
+          <span className="ai-panel-eyebrow">{t('eyebrow')}</span>
+          <h3>{title || t('title')}</h3>
+          <p>{description || t('description')}</p>
         </div>
       </div>
 
@@ -94,17 +48,19 @@ export default function InsightsPanel({
             <Skeleton className="ai-skeleton-card" variant="panel" />
           </div>
         </>
+      ) : !hasAnySignals ? (
+        <EmptyState compact title={t('emptyTitle')} description={t('emptyDescription')} />
       ) : (
         <>
           <div className="ai-insight-list">
             {insights.map((insight, index) => {
-              const typeMeta = insightTypeMap[insight.type] || insightTypeMap.neutral;
-              const InsightIcon = typeMeta.icon;
+              const InsightIcon = insightTypeMap[insight.type] || insightTypeMap.neutral;
+              const tone = insight.type || 'neutral';
 
               return (
                 <motion.article
-                  key={insight.id || `${insight.message}-${index}`}
-                  className={`ai-insight-card ai-insight-card--${insight.type || 'neutral'}`}
+                  key={insight.id || `${insight.code}-${index}`}
+                  className={`ai-insight-card ai-insight-card--${tone}`}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: index * 0.04 }}
@@ -113,34 +69,40 @@ export default function InsightsPanel({
                     <InsightIcon size={16} />
                   </span>
                   <div className="ai-insight-copy">
-                    <strong>{typeMeta.label}</strong>
-                    <p>{insight.message}</p>
-                    {insight.actionHint ? <small>{insight.actionHint}</small> : null}
+                    <strong>{t(`insights.${insight.code}.title`, insight.values || {})}</strong>
+                    <p>{t(`insights.${insight.code}.message`, insight.values || {})}</p>
+                    {insight.actionKey ? (
+                      <small>{t(`actions.${insight.actionKey}`, insight.values || {})}</small>
+                    ) : null}
                   </div>
                 </motion.article>
               );
             })}
           </div>
 
-          <div className="ai-student-grid">
-            {studentCards.map((card) => {
-              const CardIcon = card.icon;
+          {cards.length ? (
+            <div className="ai-student-grid">
+              {cards.map((card) => {
+                const CardIcon = card.icon || fallbackCardIcon;
 
-              return (
-                <div className={`ai-student-card ai-student-card--${card.tone}`} key={card.id}>
-                  <div className="ai-student-card-head">
-                    <span className="ai-student-card-icon" aria-hidden="true">
-                      <CardIcon size={16} />
-                    </span>
-                    <strong>{card.label}</strong>
+                return (
+                  <div className={`ai-student-card ai-student-card--${card.tone || 'neutral'}`} key={card.id}>
+                    <div className="ai-student-card-head">
+                      <span className="ai-student-card-icon" aria-hidden="true">
+                        <CardIcon size={16} />
+                      </span>
+                      <strong>{card.label}</strong>
+                    </div>
+                    <span className="ai-student-card-value">{card.value}</span>
+                    {card.helper ? <p>{card.helper}</p> : null}
+                    {card.caption ? <small>{card.caption}</small> : null}
                   </div>
-                  <span className="ai-student-card-value">{card.value}</span>
-                  <p>{card.hint}</p>
-                  <small>{formatPreviewNames(card.names)}</small>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState compact title={t('studentEmptyTitle')} description={t('studentEmptyDescription')} />
+          )}
         </>
       )}
     </Card>

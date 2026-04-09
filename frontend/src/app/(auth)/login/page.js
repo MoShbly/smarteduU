@@ -26,7 +26,7 @@ export default function LoginPage() {
       await new Promise((resolve) => setTimeout(resolve, 350));
       router.replace(result.user.role === 'teacher' ? '/teacher' : '/student');
     } catch (submitError) {
-      setError(submitError.message);
+      setError(submitError.message || t('validationSubmitFailed'));
     }
   };
 

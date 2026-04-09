@@ -1,5 +1,9 @@
 'use client';
 
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+
+import { MOTION_EASE_SOFT } from '@/lib/motion';
+
 export default function Input({
   id,
   label,
@@ -14,10 +18,35 @@ export default function Input({
   labelAction,
   ...props
 }) {
+  const shouldReduceMotion = useReducedMotion();
   const Control = multiline ? 'textarea' : 'input';
+  const feedbackMotion = shouldReduceMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 }
+      }
+    : {
+        initial: { opacity: 0, y: -4 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -4 }
+      };
 
   return (
-    <label className={['field', error ? 'has-error' : '', className].filter(Boolean).join(' ')} htmlFor={id}>
+    <motion.label
+      layout
+      className={[
+        'field',
+        error ? 'has-error' : '',
+        props.disabled ? 'is-disabled' : '',
+        trailingControl ? 'has-trailing' : '',
+        className
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      htmlFor={id}
+      transition={{ duration: 0.22, ease: MOTION_EASE_SOFT }}
+    >
       {label ? (
         <span className="field-label-row">
           <span className="field-label">{label}</span>
@@ -33,12 +62,36 @@ export default function Input({
             <Icon size={16} />
           </span>
         ) : null}
-        <Control id={id} rows={multiline ? rows : undefined} {...props} />
+        <Control
+          id={id}
+          rows={multiline ? rows : undefined}
+          aria-invalid={Boolean(error)}
+          {...props}
+        />
         {trailingControl ? <span className="field-trailing">{trailingControl}</span> : null}
       </span>
 
-      {error ? <span className="field-feedback field-feedback--error">{error}</span> : null}
-      {!error && hint ? <span className="field-hint">{hint}</span> : null}
-    </label>
+      <AnimatePresence mode="wait" initial={false}>
+        {error ? (
+          <motion.span
+            key="error"
+            className="field-feedback field-feedback--error"
+            {...feedbackMotion}
+            transition={{ duration: 0.18, ease: MOTION_EASE_SOFT }}
+          >
+            {error}
+          </motion.span>
+        ) : hint ? (
+          <motion.span
+            key="hint"
+            className="field-hint"
+            {...feedbackMotion}
+            transition={{ duration: 0.18, ease: MOTION_EASE_SOFT }}
+          >
+            {hint}
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
+    </motion.label>
   );
 }

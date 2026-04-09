@@ -87,6 +87,23 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleUnauthorized = () => {
+      clearAuthSession();
+      dispatch({ type: 'AUTH_CLEAR' });
+    };
+
+    window.addEventListener('smartedu:unauthorized', handleUnauthorized);
+
+    return () => {
+      window.removeEventListener('smartedu:unauthorized', handleUnauthorized);
+    };
+  }, []);
+
   const login = async (payload) => {
     const response = await authService.login(payload);
 

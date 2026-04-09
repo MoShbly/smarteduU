@@ -1,10 +1,11 @@
 'use client';
 
 import { CircleCheckBig, Eye, EyeOff, GraduationCap, LibraryBig, TriangleAlert } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import { getHoverLift, getRevealMotion, MOTION_EASE_SOFT } from '@/lib/motion';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
@@ -18,6 +19,7 @@ const initialState = {
 export default function AuthForm({ mode, onSubmit, error, successMessage }) {
   const t = useTranslations('auth');
   const isRegister = mode === 'register';
+  const shouldReduceMotion = useReducedMotion();
   const [formState, setFormState] = useState(initialState);
   const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,23 +106,41 @@ export default function AuthForm({ mode, onSubmit, error, successMessage }) {
     <motion.form
       className="auth-form"
       onSubmit={handleSubmit}
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
+      {...getRevealMotion(shouldReduceMotion, {
+        y: 16,
+        scale: 0.996,
+        duration: 0.34
+      })}
     >
-      {error ? (
-        <div className="feedback-banner feedback-banner--error">
-          <TriangleAlert size={18} />
-          <p>{error}</p>
-        </div>
-      ) : null}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {error ? (
+          <motion.div
+            key="error"
+            className="feedback-banner feedback-banner--error"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: MOTION_EASE_SOFT }}
+          >
+            <TriangleAlert size={18} />
+            <p>{error}</p>
+          </motion.div>
+        ) : null}
 
-      {successMessage ? (
-        <div className="feedback-banner feedback-banner--success">
-          <CircleCheckBig size={18} />
-          <p>{successMessage}</p>
-        </div>
-      ) : null}
+        {successMessage ? (
+          <motion.div
+            key="success"
+            className="feedback-banner feedback-banner--success"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: MOTION_EASE_SOFT }}
+          >
+            <CircleCheckBig size={18} />
+            <p>{successMessage}</p>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {isRegister ? (
         <Input
@@ -133,6 +153,7 @@ export default function AuthForm({ mode, onSubmit, error, successMessage }) {
           placeholder={t('fullNamePlaceholder')}
           error={fieldErrors.name}
           required
+          autoComplete="name"
         />
       ) : null}
 
@@ -147,29 +168,35 @@ export default function AuthForm({ mode, onSubmit, error, successMessage }) {
         error={fieldErrors.email}
         required
         autoComplete="email"
+        autoCapitalize="none"
       />
 
       {isRegister ? (
-        <div className="role-grid">
-          {roles.map(({ value, title, description, icon: Icon }) => (
-            <button
-              key={value}
-              type="button"
-              className={`role-option ${formState.role === value ? 'active' : ''}`}
-              onClick={() =>
-                setFormState((currentState) => ({
-                  ...currentState,
-                  role: value
-                }))
-              }
-            >
-              <span className="role-option-icon">
-                <Icon size={18} />
-              </span>
-              <strong>{title}</strong>
-              <span>{description}</span>
-            </button>
-          ))}
+        <div className="field">
+          <span className="field-label">{t('selectRole')}</span>
+          <div className="role-grid">
+            {roles.map(({ value, title, description, icon: Icon }) => (
+              <motion.button
+                key={value}
+                type="button"
+                className={`role-option ${formState.role === value ? 'active' : ''}`}
+                onClick={() =>
+                  setFormState((currentState) => ({
+                    ...currentState,
+                    role: value
+                  }))
+                }
+                whileHover={getHoverLift(shouldReduceMotion, -3)}
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
+              >
+                <span className="role-option-icon">
+                  <Icon size={18} />
+                </span>
+                <strong>{title}</strong>
+                <span>{description}</span>
+              </motion.button>
+            ))}
+          </div>
         </div>
       ) : null}
 

@@ -25,9 +25,19 @@ enum AssignmentStatus {
 }
 
 enum SubmissionStatus {
+  draft
   pending
   submitted
   graded
+}
+
+enum AssignmentProgressState {
+  not_started
+  viewed
+  started
+  draft_saved
+  submitted
+  reviewed
 }
 
 model User {
@@ -42,6 +52,7 @@ model User {
   enrollments        Enrollment[]
   createdAssignments Assignment[]   @relation("AssignmentCreator")
   submissions        Submission[]
+  assignmentProgress AssignmentProgress[]
   activityLogs       ActivityLog[]  @relation("ActivityActor")
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
@@ -95,6 +106,7 @@ model Assignment {
   course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdBy   User             @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
   submissions Submission[]
+  progressRecords AssignmentProgress[]
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
@@ -108,6 +120,10 @@ model Submission {
   assignmentId String           @map("assignment_id") @db.Uuid
   studentId    String           @map("student_id") @db.Uuid
   content      String
+  attachmentPath String?        @map("attachment_path")
+  attachmentName String?        @map("attachment_name")
+  attachmentMimeType String?    @map("attachment_mime_type")
+  attachmentSize Int?           @map("attachment_size")
   status       SubmissionStatus @default(pending)
   grade        Int?
   feedback     String           @default("")
@@ -120,6 +136,28 @@ model Submission {
   @@unique([assignmentId, studentId])
   @@index([studentId])
   @@map("submissions")
+}
+
+model AssignmentProgress {
+  id                String                  @id @default(uuid()) @db.Uuid
+  assignmentId      String                  @map("assignment_id") @db.Uuid
+  studentId         String                  @map("student_id") @db.Uuid
+  state             AssignmentProgressState @default(not_started)
+  progressPercent   Int                     @default(0) @map("progress_percent")
+  viewedAt          DateTime?               @map("viewed_at")
+  startedAt         DateTime?               @map("started_at")
+  draftSavedAt      DateTime?               @map("draft_saved_at")
+  submittedAt       DateTime?               @map("submitted_at")
+  reviewedAt        DateTime?               @map("reviewed_at")
+  lastInteractionAt DateTime?               @map("last_interaction_at")
+  assignment        Assignment              @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student           User                    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@map("assignment_progress")
 }
 
 model ActivityLog {

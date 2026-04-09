@@ -1,4 +1,6 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+
+import { MOTION_EASE_SOFT } from '@/lib/motion';
 
 export default function Skeleton({
   className = '',
@@ -8,6 +10,7 @@ export default function Skeleton({
   count = 1,
   variant = 'text'
 }) {
+  const shouldReduceMotion = useReducedMotion();
   const baseClass = `skeleton skeleton--${variant} ${className}`;
   const getStyle = () => ({
     height: height ? (typeof height === 'number' ? `${height}px` : height) : undefined,
@@ -20,13 +23,13 @@ export default function Skeleton({
       key={i}
       className={baseClass}
       style={getStyle()}
-      initial={{ opacity: 0.5 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0.45 }}
+      animate={{ opacity: shouldReduceMotion ? 0.8 : 1 }}
       transition={{
-        duration: 1.1,
-        repeat: Infinity,
-        repeatType: 'reverse',
-        ease: 'easeInOut'
+        duration: shouldReduceMotion ? 0.2 : 1.1,
+        repeat: shouldReduceMotion ? 0 : Infinity,
+        repeatType: shouldReduceMotion ? undefined : 'reverse',
+        ease: shouldReduceMotion ? MOTION_EASE_SOFT : 'easeInOut'
       }}
     />
   ));

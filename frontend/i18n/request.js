@@ -15,7 +15,12 @@ const detectLocaleFromHeader = (acceptLanguageHeader = '') => {
 };
 
 export default getRequestConfig(async () => {
-  const locale = 'tr'; // Force TR exclusively as requested
+  const cookieStore = await cookies();
+  const headerStore = await headers();
+  const cookieLocale = cookieStore.get('NEXT_LOCALE')?.value;
+  const locale = SUPPORTED_LOCALES.includes(cookieLocale)
+    ? cookieLocale
+    : detectLocaleFromHeader(headerStore.get('accept-language') || '');
 
   return {
     locale,
