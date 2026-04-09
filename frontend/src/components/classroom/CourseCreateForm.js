@@ -76,14 +76,6 @@ export default function CourseCreateForm({ onSubmit, onSuccess }) {
             onChange={handleChange}
             placeholder={t('courseSubjectPlaceholder')}
           />
-
-          <Input
-            id="course-code-preview"
-            label={t('courseCodeAuto')}
-            value={t('courseCodeAutoValue')}
-            disabled
-            readOnly
-          />
         </div>
 
         <Input
@@ -96,6 +88,8 @@ export default function CourseCreateForm({ onSubmit, onSuccess }) {
           multiline
           rows={5}
         />
+
+        <p className="form-hint-text">{t('courseCodeAutoHint')}</p>
       </div>
 
       {error ? <p className="form-feedback form-feedback--error">{error}</p> : null}

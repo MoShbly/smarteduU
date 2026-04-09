@@ -14,7 +14,7 @@ Smart Classroom is a robust, production-ready classroom management platform insp
 ## Features
 
 - **PostgreSQL + Prisma**: Relational data layer ensuring data integrity.
-- **Secure Authentication**: Hardened JWT authentication, HTTP-only cookie token storage, and rate limiting.
+- **Secure Authentication**: Hardened JWT authentication, signed session persistence, and rate limiting.
 - **Role-Based Access**: Dedicated UI features for `STUDENT` and `TEACHER` roles via protected Next.js routing.
 - **Modern UI/UX**: Crafted with React, Tailwind CSS, and Framer Motion micro-animations.
 - **Production-Ready Docker**: Pre-configured multi-stage container builds for rapid deployment.

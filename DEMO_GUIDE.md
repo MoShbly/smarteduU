@@ -4,18 +4,17 @@ This guide is designed to help you ace your graduation project presentation! It 
 
 ## 🚀 Before You Start (Preparation)
 
-1. **Clear Old Data & Seed Fresh Data**:
-   Ensure you have a clean slate to show.
+1. **Clear Old Data and Start with a Clean Database**:
+   Ensure you have a clean slate to show real user flows.
 
 ```bash
    cd backend
    npm run prisma:migrate # applies latest schema
 
-   npm run prisma:seed    # populates Demo Teacher & Demo Student
+   npm run prisma:seed    # optional: creates one real account only if SEED_USER_* variables are set
 
 ```
-
-   _Make sure `SEED_DEFAULT_PASSWORD` is set in your `backend/.env` file so you know what password to type during the demo!_
+   _For the most authentic presentation, skip seeded demo data and register fresh teacher and student accounts through the UI._
 
 2. **Run in Production Mode for Maximum Speed**:
    Professors love fast, snappy applications. Instead of running in `dev` mode with hot-reloading (which is slightly slower), run the fully optimized production builds.
@@ -35,7 +34,7 @@ When explaining your project to the panel/professor, focus on these technical ac
 3. **Advanced Security**:
 
    - **XSS Protection**: Talk about the `sanitize.middleware.js` that strips malicious script tags from all user inputs.
-   - **JWT + HTTP-Only Cookies**: Explain that you avoid storing tokens in `localStorage` to prevent token-theft, utilizing proper authentication cookies.
+   - **JWT + Protected Session Persistence**: Explain that authentication is handled with signed JWTs, protected routes, and restored sessions without relying on fake client-side demo state.
    - **Brute-Force Protection**: Mention the API rate-limiting (`express-rate-limit`) on login and registration endpoints.
 4. **Role-Based Access Control (RBAC)**: Next.js middleware safely guards the `/student` and `/teacher` routes preventing unauthorized access both on the UI layer and the API layer.
 5. **Micro-Animations & UI/UX**: Show off the Framer Motion page transitions, explaining that a modern platform requires a modern, smooth User Experience.
@@ -49,24 +48,20 @@ Follow this exact flow during your presentation to make sure nothing breaks and 
 
 ### Step 1: The Teacher Experience
 
-1. **Login**: Go to `http://localhost:3000/login` and log in with the seeded Teacher:
-
-   - **Email:** `teacher@smartclassroom.edu`
-   - **Password:** _(whatever you set as SEED_DEFAULT_PASSWORD)_
-2. **Dashboard Overview**: Demonstrate the teacher dashboard. Point out the loaded "Smart Classroom Demo Course".
-3. **Create an Assignment**: Show how simple it is for a teacher to open the course and publish a new assignment (or view the pre-seeded "Initial Platform Reflection" assignment).
+1. **Register a Teacher**: Go to `http://localhost:3000/register`, choose the teacher role, and create a fresh account.
+2. **Dashboard Overview**: Demonstrate that the teacher dashboard starts empty and honest, then fills with real data as actions happen.
+3. **Create a Course**: Build a real course and point out that the course code is generated automatically by the backend.
+4. **Create an Assignment**: Open the course context and publish a new assignment with a real due date.
 4. **Log Out**: Log out securely to clear the session cookie.
 
 ### Step 2: The Student Experience
 
-1. **Login**: Go back to `/login` and log in as the Student:
-
-   - **Email:** `student@smartclassroom.edu`
-   - **Password:** _(whatever you set as SEED_DEFAULT_PASSWORD)_
-2. **Student Dashboard**: Show that the UI completely changes according to the RBAC (Role-Based Access Control). The student only sees courses they are enrolled in.
-3. **View Assignment**: Click into the course. Show the "Initial Platform Reflection" assignment created by the teacher.
-4. **Submit Work**: Fill out a demo submission. Emphasize how fast the submission API processes the request.
-5. **Activity Logs**: (If visible on dashboard) show that system activity logs accurately captured the actions in real-time.
+1. **Register a Student**: Go back to `/register`, create a separate student account, and sign in.
+2. **Join the Course**: Use the generated course code from the teacher flow to join the real course.
+3. **Student Dashboard**: Show that the UI completely changes according to the RBAC (Role-Based Access Control). The student only sees courses they are actually enrolled in.
+4. **View Assignment**: Open the joined course and show the assignment created by the teacher.
+5. **Submit Work**: Send a real submission using text, a file, or both. Emphasize that the submission is stored in PostgreSQL and immediately appears in the teacher review flow.
+6. **Activity Logs**: Show that joins, submissions, and grading events are captured in real-time.
 
 ### Step 3: The "Under the Hood" Code Tour
 

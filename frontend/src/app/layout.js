@@ -5,6 +5,8 @@ import { getLocale, getMessages } from 'next-intl/server';
 import AppProviders from '@/providers/AppProviders';
 
 import './globals.css';
+import './polish.css';
+import './final-wow.css';
 
 const manrope = Manrope({
   subsets: ['latin'],

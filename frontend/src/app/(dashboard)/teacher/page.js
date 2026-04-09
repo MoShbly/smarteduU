@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import {
+  AlertTriangle,
   BookOpenCheck,
   CalendarClock,
   ClipboardCheck,
@@ -10,9 +11,10 @@ import {
   FolderPlus,
   ScanSearch,
   Sparkles,
+  Trophy,
   UsersRound
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import InsightsPanel from '@/components/ai/InsightsPanel';
@@ -32,7 +34,15 @@ import AnimatedPage from '@/components/motion/AnimatedPage';
 import { PROTECTED_ROUTE_ROLES } from '@/constants/routes';
 import { useAuth } from '@/context/AuthContext';
 import { useApiQuery } from '@/hooks/useApiQuery';
-import { formatDate, formatDueState, formatStatusLabel, getSubmissionTone } from '@/lib/dashboard';
+import {
+  formatActivityLabel,
+  formatDate,
+  formatDueState,
+  formatProgressState,
+  formatStatusLabel,
+  getProgressTone,
+  getSubmissionTone
+} from '@/lib/dashboard';
 import { activityService } from '@/services/activity.service';
 import { assignmentService } from '@/services/assignment.service';
 import { courseService } from '@/services/course.service';
@@ -43,6 +53,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
 import Modal from '@/components/ui/Modal';
+import ProgressMeter from '@/components/ui/ProgressMeter';
 import Skeleton from '@/components/ui/Skeleton';
 import StatePanel from '@/components/ui/StatePanel';
 
@@ -79,10 +90,30 @@ function DashboardLoadingState() {
   );
 }
 
+function AnalyticsListCard({ title, description, items, emptyTitle, emptyDescription, renderItem }) {
+  return (
+    <Card className="analytics-list-card" tone="subtle">
+      <div className="analytics-list-head">
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+
+      {items.length ? (
+        <div className="analytics-list-body">
+          {items.map(renderItem)}
+        </div>
+      ) : (
+        <EmptyState compact title={emptyTitle} description={emptyDescription} />
+      )}
+    </Card>
+  );
+}
+
 function TeacherDashboardContent() {
   const t = useTranslations('teacherDashboard');
   const tCommon = useTranslations('common');
   const tNav = useTranslations('nav');
+  const tActivity = useTranslations('activityFeed');
   const tWorkspace = useTranslations('teacherWorkspace');
   const locale = useLocale();
   const { token } = useAuth();
@@ -113,6 +144,7 @@ function TeacherDashboardContent() {
   const {
     data: analyticsData,
     loading: analyticsLoading,
+    error: analyticsError,
     reload: reloadAnalytics
   } = useApiQuery(() => dashboardService.getAnalytics(token), [token], {
     enabled: Boolean(token),
@@ -155,7 +187,8 @@ function TeacherDashboardContent() {
       enabled: Boolean(token && selectedAssignmentId),
       initialData: {
         assignment: null,
-        submissions: []
+        submissions: [],
+        studentProgress: []
       }
     }
   );
@@ -203,6 +236,78 @@ function TeacherDashboardContent() {
   const hasPerformanceData = Boolean(analyticsData?.performance?.length);
   const hasSubmissionData = Boolean(analyticsData?.submissions?.length);
   const recentActivity = activities[0] || null;
+  const selectedCourseStudents = selectedCourse?.enrollments || [];
+  const recentActivityTitle = recentActivity ? formatActivityLabel(recentActivity.action, tActivity) : '';
+  const recentActivityDescription =
+    recentActivity?.details?.title ||
+    recentActivity?.details?.assignmentTitle ||
+    recentActivity?.details?.courseTitle ||
+    tWorkspace('activitySectionDesc');
+  const overviewHighlights = [
+    selectedCourse
+      ? {
+          label: tWorkspace('focusSelectedCourse'),
+          value: selectedCourse.code,
+          detail: selectedCourse.title
+        }
+      : null,
+    selectedAssignment
+      ? {
+          label: tWorkspace('focusSelectedAssignment'),
+          value: formatDate(selectedAssignment.dueDate, locale),
+          detail: selectedAssignment.title
+        }
+      : null,
+    recentActivity
+      ? {
+          label: tNav('activity'),
+          value: formatDate(recentActivity.createdAt, locale),
+          detail: recentActivityTitle
+        }
+      : null
+  ].filter(Boolean);
+
+  const analyticsCards = useMemo(
+    () => [
+      {
+        id: 'support',
+        label: t('supportStudentsLabel'),
+        value: analyticsData?.summary?.supportStudentsCount ?? 0,
+        helper: t('supportStudentsHelper'),
+        caption: t('supportStudentsCaption'),
+        tone: 'warning',
+        icon: AlertTriangle
+      },
+      {
+        id: 'top',
+        label: t('topStudentsLabel'),
+        value: analyticsData?.summary?.topStudentsCount ?? 0,
+        helper: t('topStudentsHelper'),
+        caption: t('topStudentsCaption'),
+        tone: 'success',
+        icon: Trophy
+      },
+      {
+        id: 'delayed',
+        label: t('delayedStudentsLabel'),
+        value: analyticsData?.summary?.delayedStudentsCount ?? 0,
+        helper: t('delayedStudentsHelper'),
+        caption: t('delayedStudentsCaption'),
+        tone: 'warning',
+        icon: ClipboardCheck
+      },
+      {
+        id: 'courses',
+        label: t('courseRiskLabel'),
+        value: analyticsData?.summary?.lowCompletionCoursesCount ?? 0,
+        helper: t('courseRiskHelper'),
+        caption: t('courseRiskCaption'),
+        tone: 'accent',
+        icon: BookOpenCheck
+      }
+    ],
+    [analyticsData?.summary, t]
+  );
 
   const reloadWorkspace = () => {
     reloadDashboard();
@@ -211,6 +316,15 @@ function TeacherDashboardContent() {
     reloadReview();
     reloadActivities();
     reloadAnalytics();
+  };
+
+  const refreshTeacherData = () => {
+    reloadDashboard();
+    reloadAssignments();
+    reloadReview();
+    reloadActivities();
+    reloadAnalytics();
+    reloadCourses();
   };
 
   const handleCreateCourse = async (payload) => {
@@ -224,20 +338,14 @@ function TeacherDashboardContent() {
 
   const handleCreateAssignment = async (payload) => {
     const assignment = await assignmentService.createAssignment(payload, token);
-    reloadDashboard();
-    reloadAssignments();
-    reloadActivities();
-    reloadAnalytics();
+    refreshTeacherData();
     setSelectedAssignmentId(assignment.id);
     return assignment;
   };
 
   const handleReviewSubmission = async (submissionId, payload) => {
     const submission = await submissionService.reviewSubmission(submissionId, payload, token);
-    reloadDashboard();
-    reloadReview();
-    reloadActivities();
-    reloadAnalytics();
+    refreshTeacherData();
     return submission;
   };
 
@@ -303,21 +411,43 @@ function TeacherDashboardContent() {
 
         <motion.section
           id="overview"
-          className="dashboard-section"
+          className="dashboard-section dashboard-section--hero"
           variants={sectionVariants}
           initial="hidden"
           animate="visible"
           custom={0}
         >
-          <div className="dashboard-section-head">
-            <div className="section-intro">
+          <Card className="dashboard-hero-banner dashboard-hero-banner--teacher" tone="soft">
+            <div className="dashboard-hero-copy">
               <Badge tone="accent">{t('heroEyebrow')}</Badge>
               <h2>{t('heroTitle')}</h2>
               <p>{t('heroDescription')}</p>
             </div>
-          </div>
 
-          <div className="dashboard-stats-grid">
+            <div className="dashboard-hero-highlights">
+              {overviewHighlights.length ? (
+                overviewHighlights.map((item) => (
+                  <article className="dashboard-hero-highlight" key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                    <small>{item.detail}</small>
+                  </article>
+                ))
+              ) : (
+                <EmptyState compact title={t('overviewEmptyTitle')} description={t('overviewEmptyDesc')} />
+              )}
+            </div>
+          </Card>
+
+          <div className="dashboard-stats-grid dashboard-stats-grid--highlighted">
+            <StatCard
+              label={t('metricSubmissions')}
+              value={metrics.pendingSubmissions}
+              helper={t('metricSubmissionsHelper')}
+              icon={ClipboardCheck}
+              accent="rose"
+              featured
+            />
             <StatCard
               label={t('metricCourses')}
               value={metrics.totalCourses}
@@ -339,25 +469,18 @@ function TeacherDashboardContent() {
               icon={FileText}
               accent="gold"
             />
-            <StatCard
-              label={t('metricSubmissions')}
-              value={metrics.pendingSubmissions}
-              helper={t('metricSubmissionsHelper')}
-              icon={ClipboardCheck}
-              accent="rose"
-            />
           </div>
         </motion.section>
 
         <motion.section
           id="insights"
-          className="dashboard-section"
+          className="dashboard-section dashboard-section--insights"
           variants={sectionVariants}
           initial="hidden"
           animate="visible"
           custom={1}
         >
-          <Card className="insight-spotlight" tone="soft">
+          <Card className="insight-spotlight insight-spotlight--teacher" tone="soft">
             <div className="insight-spotlight-head">
               <div className="section-intro">
                 <Badge tone="accent">{tNav('insights')}</Badge>
@@ -365,13 +488,17 @@ function TeacherDashboardContent() {
                 <p>{t('focusPendingReviewsDesc', { count: metrics.pendingSubmissions })}</p>
               </div>
 
-              <div className="insight-spotlight-summary">
-                <span>{selectedCourse?.code || '--'}</span>
-                <small>{selectedCourse?.title || tWorkspace('noCourseSelected')}</small>
-              </div>
+              {selectedCourse ? (
+                <div className="insight-spotlight-summary">
+                  <span>{selectedCourse.code}</span>
+                  <small>{selectedCourse.title}</small>
+                </div>
+              ) : (
+                <EmptyState compact title={tWorkspace('noCourseSelected')} description={tWorkspace('selectCourseHint')} />
+              )}
             </div>
 
-            <div className="insight-spotlight-grid">
+            <div className="insight-spotlight-grid insight-spotlight-grid--featured">
               <InsightCard
                 eyebrow={t('focusPendingReviews')}
                 value={metrics.pendingSubmissions}
@@ -379,105 +506,226 @@ function TeacherDashboardContent() {
                 description={tWorkspace('reviewSectionDesc')}
                 accent="rose"
                 icon={ClipboardCheck}
+                featured
               />
-              <InsightCard
-                eyebrow={tWorkspace('focusSelectedCourse')}
-                value={selectedCourse?.code || '--'}
-                title={selectedCourse?.title || tWorkspace('noCourseSelected')}
-                description={
-                  selectedCourse
-                    ? `${selectedCourse.subject || tWorkspace('noSubject')} · ${selectedCourse._count?.enrollments ?? 0} ${t('metricStudents').toLowerCase()}`
-                    : tWorkspace('selectCourseHint')
-                }
-                accent="primary"
-                icon={BookOpenCheck}
-              />
-              <InsightCard
-                eyebrow={tWorkspace('focusSelectedAssignment')}
-                value={selectedAssignment ? formatDate(selectedAssignment.dueDate, locale) : '--'}
-                title={selectedAssignment?.title || tWorkspace('noAssignmentSelected')}
-                description={
-                  selectedAssignment
-                    ? `${selectedAssignment._count?.submissions ?? 0} ${t('submissionsTracked')}`
-                    : tWorkspace('selectAssignmentHint')
-                }
-                accent="gold"
-                icon={CalendarClock}
-              />
-              <InsightCard
-                eyebrow={tNav('activity')}
-                value={recentActivity ? formatDate(recentActivity.createdAt, locale) : '--'}
-                title={recentActivity ? formatStatusLabel(recentActivity.action) : t('noActivityTitle')}
-                description={
-                  recentActivity
-                    ? recentActivity.details?.title ||
-                      recentActivity.details?.assignmentTitle ||
-                      recentActivity.details?.courseTitle ||
-                      tWorkspace('activitySectionDesc')
-                    : t('noActivityDesc')
-                }
-                accent="teal"
-                icon={Sparkles}
-              />
+              {selectedCourse ? (
+                <InsightCard
+                  eyebrow={tWorkspace('focusSelectedCourse')}
+                  value={selectedCourse.code}
+                  title={selectedCourse.title}
+                  description={`${selectedCourse.subject || tWorkspace('noSubject')} · ${selectedCourse._count?.enrollments ?? 0} ${t('metricStudents').toLowerCase()}`}
+                  accent="primary"
+                  icon={BookOpenCheck}
+                />
+              ) : null}
+              {selectedAssignment ? (
+                <InsightCard
+                  eyebrow={tWorkspace('focusSelectedAssignment')}
+                  value={formatDate(selectedAssignment.dueDate, locale)}
+                  title={selectedAssignment.title}
+                  description={`${selectedAssignment.progressSummary?.submittedCount ?? 0} ${t('submissionsTracked')}`}
+                  accent="gold"
+                  icon={CalendarClock}
+                />
+              ) : null}
+              {recentActivity ? (
+                <InsightCard
+                  eyebrow={tNav('activity')}
+                  value={formatDate(recentActivity.createdAt, locale)}
+                  title={recentActivityTitle}
+                  description={recentActivityDescription}
+                  accent="teal"
+                  icon={Sparkles}
+                />
+              ) : null}
             </div>
           </Card>
 
-          <InsightsPanel
-            loading={analyticsLoading}
-            insights={analyticsData?.insights || []}
-            weakStudents={analyticsData?.weakStudents || []}
-            topStudents={analyticsData?.topStudents || []}
-            riskStudents={analyticsData?.riskStudents || []}
-          />
+          {analyticsError ? (
+            <StatePanel
+              compact
+              variant="error"
+              title={t('analyticsErrorTitle')}
+              description={analyticsError}
+              action={
+                <Button variant="secondary" onClick={reloadAnalytics}>
+                  {tCommon('retry')}
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              <InsightsPanel
+                loading={analyticsLoading}
+                title={t('analyticsPanelTitle')}
+                description={t('analyticsPanelDesc')}
+                insights={analyticsData?.insights || []}
+                cards={analyticsCards}
+              />
+
+              <div className="analytics-grid">
+                <AnalyticsListCard
+                  title={t('topStudentsTitle')}
+                  description={t('topStudentsDesc')}
+                  items={analyticsData?.strongestStudents || []}
+                  emptyTitle={t('topStudentsEmptyTitle')}
+                  emptyDescription={t('topStudentsEmptyDesc')}
+                  renderItem={(student) => (
+                    <article className="analytics-row" key={student.id}>
+                      <div>
+                        <strong>{student.name}</strong>
+                        <p>{student.averageScore}%</p>
+                      </div>
+                      <small>{t('completedAssignmentsStat', { count: student.completedAssignments })}</small>
+                    </article>
+                  )}
+                />
+
+                <AnalyticsListCard
+                  title={t('supportStudentsTitle')}
+                  description={t('supportStudentsDesc')}
+                  items={analyticsData?.weakestStudents || []}
+                  emptyTitle={t('supportStudentsEmptyTitle')}
+                  emptyDescription={t('supportStudentsEmptyDesc')}
+                  renderItem={(student) => (
+                    <article className="analytics-row" key={student.id}>
+                      <div>
+                        <strong>{student.name}</strong>
+                        <p>
+                          {student.averageScore !== null && student.averageScore !== undefined
+                            ? `${student.averageScore}%`
+                            : t('noGradesLabel')}
+                        </p>
+                      </div>
+                      <small>{t('pendingAssignmentsStat', { count: student.pendingAssignmentsCount })}</small>
+                    </article>
+                  )}
+                />
+
+                <AnalyticsListCard
+                  title={t('delayedStudentsTitle')}
+                  description={t('delayedStudentsDesc')}
+                  items={analyticsData?.delayedStudents || []}
+                  emptyTitle={t('delayedStudentsEmptyTitle')}
+                  emptyDescription={t('delayedStudentsEmptyDesc')}
+                  renderItem={(student) => (
+                    <article className="analytics-row" key={student.id}>
+                      <div>
+                        <strong>{student.name}</strong>
+                        <p>{t('delayedAssignmentsStat', { count: student.delayedAssignmentsCount })}</p>
+                      </div>
+                      <small>{t('consistencyStat', { value: student.consistencyRate ?? 0 })}</small>
+                    </article>
+                  )}
+                />
+
+                <AnalyticsListCard
+                  title={t('courseRiskTitle')}
+                  description={t('courseRiskDesc')}
+                  items={analyticsData?.lowCompletionCourses || []}
+                  emptyTitle={t('courseRiskEmptyTitle')}
+                  emptyDescription={t('courseRiskEmptyDesc')}
+                  renderItem={(course) => (
+                    <article className="analytics-row" key={course.id}>
+                      <div>
+                        <strong>{course.title}</strong>
+                        <p>{course.completionRate}%</p>
+                      </div>
+                      <small>{course.code}</small>
+                    </article>
+                  )}
+                />
+
+                <AnalyticsListCard
+                  title={t('assignmentRiskTitle')}
+                  description={t('assignmentRiskDesc')}
+                  items={analyticsData?.lowestAssignments || []}
+                  emptyTitle={t('assignmentRiskEmptyTitle')}
+                  emptyDescription={t('assignmentRiskEmptyDesc')}
+                  renderItem={(assignment) => (
+                    <article className="analytics-row" key={assignment.id}>
+                      <div>
+                        <strong>{assignment.title}</strong>
+                        <p>{assignment.averageScore}%</p>
+                      </div>
+                      <small>{assignment.courseTitle}</small>
+                    </article>
+                  )}
+                />
+              </div>
+            </>
+          )}
         </motion.section>
 
-        <motion.section
-          className="dashboard-grid dashboard-grid--charts"
-          variants={sectionVariants}
-          initial="hidden"
-          animate="visible"
-          custom={2}
-        >
-          <Card className="chart-panel" tone="subtle">
-            <div className="chart-panel-head">
-              <div>
-                <Badge tone="accent">{t('performanceTitle')}</Badge>
-                <h3>{t('performanceTitle')}</h3>
-                <p>{t('performanceDesc')}</p>
+        {analyticsError ? (
+          <motion.section
+            className="dashboard-section"
+            variants={sectionVariants}
+            initial="hidden"
+            animate="visible"
+            custom={2}
+          >
+            <StatePanel
+              compact
+              variant="error"
+              title={t('analyticsErrorTitle')}
+              description={analyticsError}
+              action={
+                <Button variant="secondary" onClick={reloadAnalytics}>
+                  {tCommon('retry')}
+                </Button>
+              }
+            />
+          </motion.section>
+        ) : (
+          <motion.section
+            className="dashboard-grid dashboard-grid--charts"
+            variants={sectionVariants}
+            initial="hidden"
+            animate="visible"
+            custom={2}
+          >
+            <Card className="chart-panel chart-panel--primary" tone="subtle">
+              <div className="chart-panel-head">
+                <div>
+                  <Badge tone="accent">{tNav('progress')}</Badge>
+                  <h3>{t('performanceTitle')}</h3>
+                  <p>{t('performanceDesc')}</p>
+                </div>
               </div>
-            </div>
 
-            {analyticsLoading ? (
-              <Skeleton className="chart-skeleton" variant="panel" />
-            ) : hasPerformanceData ? (
-              <PerformanceChart data={analyticsData.performance} />
-            ) : (
-              <EmptyState compact title={t('performanceEmptyTitle')} description={t('performanceEmptyDesc')} />
-            )}
-          </Card>
+              {analyticsLoading ? (
+                <Skeleton className="chart-skeleton" variant="panel" />
+              ) : hasPerformanceData ? (
+                <PerformanceChart data={analyticsData.performance} />
+              ) : (
+                <EmptyState compact title={t('performanceEmptyTitle')} description={t('performanceEmptyDesc')} />
+              )}
+            </Card>
 
-          <Card className="chart-panel" tone="subtle">
-            <div className="chart-panel-head">
-              <div>
-                <Badge tone="neutral">{t('submissionsTrendTitle')}</Badge>
-                <h3>{t('submissionsTrendTitle')}</h3>
-                <p>{t('submissionsTrendDesc')}</p>
+            <Card className="chart-panel chart-panel--secondary" tone="subtle">
+              <div className="chart-panel-head">
+                <div>
+                  <Badge tone="neutral">{tNav('activity')}</Badge>
+                  <h3>{t('submissionsTrendTitle')}</h3>
+                  <p>{t('submissionsTrendDesc')}</p>
+                </div>
               </div>
-            </div>
 
-            {analyticsLoading ? (
-              <Skeleton className="chart-skeleton" variant="panel" />
-            ) : hasSubmissionData ? (
-              <SubmissionChart data={analyticsData.submissions} />
-            ) : (
-              <EmptyState
-                compact
-                title={t('submissionsTrendEmptyTitle')}
-                description={t('submissionsTrendEmptyDesc')}
-              />
-            )}
-          </Card>
-        </motion.section>
+              {analyticsLoading ? (
+                <Skeleton className="chart-skeleton" variant="panel" />
+              ) : hasSubmissionData ? (
+                <SubmissionChart data={analyticsData.submissions} />
+              ) : (
+                <EmptyState
+                  compact
+                  title={t('submissionsTrendEmptyTitle')}
+                  description={t('submissionsTrendEmptyDesc')}
+                />
+              )}
+            </Card>
+          </motion.section>
+        )}
 
         <motion.section
           id="courses"
@@ -533,16 +781,63 @@ function TeacherDashboardContent() {
               action={<Button onClick={() => setActiveModal('course')}>{tWorkspace('createCourse')}</Button>}
             />
           )}
+
+          {selectedCourse ? (
+            <Card className="workspace-panel" tone="subtle">
+              <div className="dashboard-section-head">
+                <div className="section-intro">
+                  <Badge tone="neutral">
+                    {tWorkspace('studentRosterCount', { count: selectedCourseStudents.length })}
+                  </Badge>
+                  <h2>{tWorkspace('studentRosterTitle')}</h2>
+                  <p>{tWorkspace('studentRosterDesc')}</p>
+                </div>
+              </div>
+
+              <div className="surface-meta-strip">
+                <Badge tone="accent">{selectedCourse.code}</Badge>
+                <span>{selectedCourse.title}</span>
+              </div>
+
+              {selectedCourseStudents.length ? (
+                <div className="student-roster">
+                  {selectedCourseStudents.map((enrollment) => (
+                    <article className="student-roster-item" key={enrollment.id}>
+                      <strong>{enrollment.student.name}</strong>
+                      <p>{enrollment.student.email}</p>
+                      <ProgressMeter
+                        value={enrollment.courseProgress?.progressPercent}
+                        label={tWorkspace('studentProgressLabel')}
+                        helper={tWorkspace('studentProgressHelper', {
+                          completed: enrollment.courseProgress?.completedAssignments ?? 0,
+                          total: enrollment.courseProgress?.totalAssignments ?? 0
+                        })}
+                        compact
+                        tone={getProgressTone(enrollment.courseProgress?.progressPercent)}
+                      />
+                      <small>{tWorkspace('studentRosterJoined', { date: formatDate(enrollment.enrolledAt, locale) })}</small>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  compact
+                  title={tWorkspace('studentRosterEmptyTitle')}
+                  description={tWorkspace('studentRosterEmptyDesc')}
+                />
+              )}
+            </Card>
+          ) : null}
         </motion.section>
 
         <motion.section
-          className="dashboard-grid dashboard-grid--workspace"
+          className="dashboard-grid dashboard-grid--workspace dashboard-grid--workspace-focus"
           variants={sectionVariants}
           initial="hidden"
           animate="visible"
           custom={4}
         >
-          <Card id="assignments" className="workspace-panel" tone="subtle">
+          <Card id="assignments" className="workspace-panel workspace-panel--primary" tone="subtle">
             <div className="dashboard-section-head">
               <div className="section-intro">
                 <Badge tone="accent">{tNav('assignments')}</Badge>
@@ -579,6 +874,7 @@ function TeacherDashboardContent() {
               <div className="assignment-stack">
                 {assignments.map((assignment) => {
                   const dueState = formatDueState(assignment.dueDate, locale, tCommon);
+                  const progressSummary = assignment.progressSummary || null;
 
                   return (
                     <AssignmentRow
@@ -587,8 +883,21 @@ function TeacherDashboardContent() {
                       description={assignment.description || ''}
                       meta={[
                         assignment.course?.title || t('courseUnavailable'),
-                        `${assignment._count?.submissions ?? 0} ${t('submissionsTracked')}`
+                        `${progressSummary?.submittedCount ?? 0} ${t('submissionsTracked')}`
                       ]}
+                      progress={
+                        progressSummary
+                          ? {
+                              value: progressSummary.completionRate,
+                              label: tWorkspace('assignmentCompletionLabel'),
+                              helper: tWorkspace('assignmentCompletionHelper', {
+                                submitted: progressSummary.submittedCount,
+                                total: progressSummary.totalStudents
+                              }),
+                              tone: getProgressTone(progressSummary.completionRate)
+                            }
+                          : null
+                      }
                       statusLabel={dueState.label || formatDate(assignment.dueDate, locale)}
                       statusTone={dueState.tone}
                       dueLabel={`${t('duePrefix')} ${formatDate(assignment.dueDate, locale)}`}
@@ -611,7 +920,7 @@ function TeacherDashboardContent() {
             )}
           </Card>
 
-          <Card id="review" className="workspace-rail" tone="subtle">
+          <Card id="review" className="workspace-rail workspace-rail--accent" tone="subtle">
             <div className="dashboard-section-head">
               <div className="section-intro">
                 <Badge tone="neutral">{tNav('review')}</Badge>
@@ -636,38 +945,72 @@ function TeacherDashboardContent() {
                   <p>{tWorkspace('maxScoreLabel', { value: reviewData.assignment.maxScore })}</p>
                 </div>
 
-                {reviewData.submissions.length ? (
+                {reviewData.studentProgress?.length ? (
                   <div className="review-stack">
-                    {reviewData.submissions.map((submission) => (
-                      <article className="review-entry" key={submission.id}>
+                    {reviewData.studentProgress.map((entry) => (
+                      <article className="review-entry" key={entry.student.id}>
                         <div className="review-entry-head">
                           <div>
-                            <strong>{submission.student?.name || t('unknownStudent')}</strong>
-                            <p>{formatDate(submission.submittedAt, locale)}</p>
+                            <strong>{entry.student.name}</strong>
+                            <p>{entry.student.email}</p>
                           </div>
-                          <Badge tone={getSubmissionTone(submission.status)}>
-                            {formatStatusLabel(submission.status)}
+                          <Badge tone={entry.submission ? getSubmissionTone(entry.submission.status) : 'neutral'}>
+                            {entry.submission
+                              ? formatStatusLabel(entry.submission.status, tCommon)
+                              : formatProgressState(entry.progress.state, tCommon)}
                           </Badge>
                         </div>
 
-                        <p className="review-entry-copy">{submission.content}</p>
+                        <ProgressMeter
+                          value={entry.progress.progressPercent}
+                          label={tWorkspace('studentProgressLabel')}
+                          helper={formatProgressState(entry.progress.state, tCommon)}
+                          compact
+                          tone={getProgressTone(entry.progress.progressPercent)}
+                        />
+
+                        {entry.submission?.content ? (
+                          <p className="review-entry-copy">{entry.submission.content}</p>
+                        ) : (
+                          <p className="review-entry-copy">{tWorkspace('reviewNoSubmissionCopy')}</p>
+                        )}
+
+                        {entry.submission?.attachmentUrl ? (
+                          <p className="review-entry-resource">
+                            <a
+                              className="resource-link"
+                              href={entry.submission.attachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {tWorkspace('reviewAttachmentLink', {
+                                name: entry.submission.attachmentName || tWorkspace('reviewAttachmentDefault')
+                              })}
+                            </a>
+                          </p>
+                        ) : null}
 
                         <div className="review-entry-foot">
                           <span>
-                            {submission.grade !== null && submission.grade !== undefined
-                              ? `${tWorkspace('reviewGrade')}: ${submission.grade}`
-                              : tWorkspace('reviewStatus')}
+                            {entry.submission?.grade !== null && entry.submission?.grade !== undefined
+                              ? `${tWorkspace('reviewGrade')}: ${entry.submission.grade}`
+                              : entry.isLate
+                                ? tWorkspace('reviewLateLabel')
+                                : tWorkspace('reviewStatus') + ': ' + formatProgressState(entry.progress.state, tCommon)}
                           </span>
-                          <Button
-                            variant="secondary"
-                            onClick={() => {
-                              setReviewTarget(submission);
-                              setActiveModal('review');
-                            }}
-                            icon={ScanSearch}
-                          >
-                            {tWorkspace('reviewSubmit')}
-                          </Button>
+                          {entry.submission?.feedback ? <span>{entry.submission.feedback}</span> : null}
+                          {entry.submission && entry.submission.status !== 'draft' ? (
+                            <Button
+                              variant="secondary"
+                              onClick={() => {
+                                setReviewTarget(entry.submission);
+                                setActiveModal('review');
+                              }}
+                              icon={ScanSearch}
+                            >
+                              {tWorkspace('reviewSubmit')}
+                            </Button>
+                          ) : null}
                         </div>
                       </article>
                     ))}
@@ -684,13 +1027,13 @@ function TeacherDashboardContent() {
 
         <motion.section
           id="activity"
-          className="dashboard-section"
+          className="dashboard-section dashboard-section--activity"
           variants={sectionVariants}
           initial="hidden"
           animate="visible"
           custom={5}
         >
-          <Card className="timeline-surface" tone="subtle">
+          <Card className="timeline-surface timeline-surface--featured" tone="subtle">
             <div className="dashboard-section-head">
               <div className="section-intro">
                 <Badge tone="neutral">{tNav('activity')}</Badge>

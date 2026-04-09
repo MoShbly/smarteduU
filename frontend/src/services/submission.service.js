@@ -15,6 +15,10 @@ export const submissionService = {
     const response = await apiClient.post('/submissions', payload, { token });
     return response.data.submission;
   },
+  async saveDraft(payload, token) {
+    const response = await apiClient.post('/submissions/draft', payload, { token });
+    return response.data.submission;
+  },
   async reviewSubmission(submissionId, payload, token) {
     const response = await apiClient.patch(`/submissions/${submissionId}/review`, payload, { token });
     return response.data.submission;

@@ -1,8 +1,10 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffect } from 'react';
+
+import { MOTION_EASE, MOTION_EASE_SOFT } from '@/lib/motion';
 
 export default function Modal({
   open,
@@ -12,6 +14,8 @@ export default function Modal({
   children,
   size = 'md'
 }) {
+  const shouldReduceMotion = useReducedMotion();
+
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -44,16 +48,17 @@ export default function Modal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: shouldReduceMotion ? 0.18 : 0.26, ease: MOTION_EASE_SOFT }}
             onClick={onClose}
             aria-label="Close"
           />
 
           <motion.div
             className={['modal-panel', `modal-panel--${size}`].join(' ')}
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.985 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.985 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.992 }}
+            transition={{ duration: shouldReduceMotion ? 0.18 : 0.28, ease: MOTION_EASE }}
           >
             <header className="modal-header">
               <div>

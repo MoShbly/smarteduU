@@ -9,6 +9,14 @@ export const assignmentService = {
     const response = await apiClient.get(`/assignments/course/${courseId}`, { token });
     return response.data.assignments;
   },
+  async trackView(assignmentId, token) {
+    const response = await apiClient.post(`/assignments/${assignmentId}/view`, {}, { token });
+    return response.data.progress;
+  },
+  async trackStart(assignmentId, token) {
+    const response = await apiClient.post(`/assignments/${assignmentId}/start`, {}, { token });
+    return response.data.progress;
+  },
   async createAssignment(payload, token) {
     const response = await apiClient.post('/assignments', payload, { token });
     return response.data.assignment;

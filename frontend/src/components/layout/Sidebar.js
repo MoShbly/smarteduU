@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Activity,
   BookCopy,
@@ -15,6 +15,7 @@ import { memo, useEffect, useState } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 import Badge from '@/components/ui/Badge';
+import { MOTION_EASE_SOFT, getPressMotion, getRevealMotion } from '@/lib/motion';
 
 const iconMap = {
   '#overview': LayoutDashboard,
@@ -31,6 +32,7 @@ const Sidebar = memo(function Sidebar({ isOpen, onClose, sections = [] }) {
   const tCommon = useTranslations('common');
   const t = useTranslations('nav');
   const { user } = useAuth();
+  const shouldReduceMotion = useReducedMotion();
   const [activeHash, setActiveHash] = useState('#overview');
 
   const defaultSections =
@@ -67,20 +69,26 @@ const Sidebar = memo(function Sidebar({ isOpen, onClose, sections = [] }) {
   }, []);
 
   const linkVariants = {
-    hidden: { opacity: 0, x: -8 },
+    hidden: shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -8 },
     visible: (index) => ({
       opacity: 1,
       x: 0,
-      transition: { duration: 0.2, delay: 0.04 + index * 0.03 }
+      transition: {
+        duration: shouldReduceMotion ? 0.16 : 0.2,
+        delay: shouldReduceMotion ? 0 : 0.04 + index * 0.03,
+        ease: MOTION_EASE_SOFT
+      }
     })
   };
 
   return (
     <motion.aside
       className={`sidebar ${isOpen ? 'open' : ''}`}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.24 }}
+      {...getRevealMotion(shouldReduceMotion, {
+        y: 0,
+        scale: 1,
+        duration: 0.28
+      })}
     >
       <div className="sidebar-content">
         <div className="sidebar-brand">
@@ -101,12 +109,21 @@ const Sidebar = memo(function Sidebar({ isOpen, onClose, sections = [] }) {
                 key={link.href}
                 className={`nav-link ${activeHash === link.href ? 'active' : ''}`}
                 href={link.href}
-                onClick={onClose}
-                variants={linkVariants}
-                initial="hidden"
-                animate="visible"
-                custom={index}
-              >
+              onClick={onClose}
+              variants={linkVariants}
+              initial="hidden"
+              animate="visible"
+              custom={index}
+              whileHover={
+                shouldReduceMotion
+                  ? undefined
+                  : {
+                      x: 2,
+                      transition: { duration: 0.18, ease: MOTION_EASE_SOFT }
+                    }
+              }
+              whileTap={getPressMotion(shouldReduceMotion)}
+            >
                 <span className="nav-link-icon">
                   <LinkIcon size={16} />
                 </span>
@@ -123,7 +140,7 @@ const Sidebar = memo(function Sidebar({ isOpen, onClose, sections = [] }) {
               {user?.role === 'teacher' ? tCommon('roleTeacher') : tCommon('roleStudent')}
             </Badge>
           </div>
-          <p>{t('footer')}</p>
+          <p>{user?.role === 'teacher' ? t('teacherWorkspace') : t('studentWorkspace')}</p>
         </div>
       </div>
     </motion.aside>

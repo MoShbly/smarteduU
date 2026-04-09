@@ -1,13 +1,8 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
-const hoverByVariant = {
-  ghost: { y: -1 },
-  secondary: { y: -2 },
-  primary: { y: -2 },
-  danger: { y: -2 }
-};
+import { getHoverLift, getPressMotion, MOTION_EASE_SOFT } from '@/lib/motion';
 
 export default function Button({
   type = 'button',
@@ -22,7 +17,11 @@ export default function Button({
   disabled,
   ...props
 }) {
+  const shouldReduceMotion = useReducedMotion();
   const isDisabled = disabled || loading;
+  const hoverLift =
+    variant === 'ghost' ? getHoverLift(shouldReduceMotion, -2) : getHoverLift(shouldReduceMotion, -3);
+  const pressMotion = getPressMotion(shouldReduceMotion);
 
   return (
     <motion.button
@@ -37,14 +36,24 @@ export default function Button({
         .filter(Boolean)
         .join(' ')}
       disabled={isDisabled}
-      whileHover={isDisabled ? undefined : hoverByVariant[variant] || hoverByVariant.primary}
-      whileTap={isDisabled ? undefined : { scale: 0.985 }}
+      aria-busy={loading}
+      whileHover={isDisabled ? undefined : hoverLift}
+      whileTap={isDisabled ? undefined : pressMotion}
+      transition={{ duration: 0.22, ease: MOTION_EASE_SOFT }}
       {...props}
     >
       {loading ? <span className="button-spinner" aria-hidden="true" /> : null}
-      {Icon && iconPosition === 'left' ? <Icon size={16} aria-hidden="true" /> : null}
-      <span>{children}</span>
-      {Icon && iconPosition === 'right' ? <Icon size={16} aria-hidden="true" /> : null}
+      {Icon && iconPosition === 'left' ? (
+        <span className="ui-button-icon" aria-hidden="true">
+          <Icon size={16} />
+        </span>
+      ) : null}
+      <span className="ui-button-label">{children}</span>
+      {Icon && iconPosition === 'right' ? (
+        <span className="ui-button-icon" aria-hidden="true">
+          <Icon size={16} />
+        </span>
+      ) : null}
     </motion.button>
   );
 }

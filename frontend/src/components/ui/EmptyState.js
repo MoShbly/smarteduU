@@ -1,7 +1,9 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Inbox } from 'lucide-react';
+
+import { getRevealMotion } from '@/lib/motion';
 
 export default function EmptyState({
   icon: Icon = Inbox,
@@ -11,14 +13,19 @@ export default function EmptyState({
   compact = false,
   tone = 'neutral'
 }) {
+  const shouldReduceMotion = useReducedMotion();
+  const revealMotion = getRevealMotion(shouldReduceMotion, {
+    y: compact ? 8 : 12,
+    scale: 0.99,
+    duration: 0.28
+  });
+
   return (
     <motion.div
       className={['empty-state', compact ? 'empty-state--compact' : '', `empty-state--${tone}`]
         .filter(Boolean)
         .join(' ')}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24 }}
+      {...revealMotion}
     >
       <span className="empty-state-icon" aria-hidden="true">
         <Icon size={compact ? 18 : 22} />

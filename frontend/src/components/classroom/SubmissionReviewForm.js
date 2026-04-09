@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input';
 
 export default function SubmissionReviewForm({ submission, maxScore, onSubmit, onSuccess }) {
   const t = useTranslations('teacherWorkspace');
+  const tCommon = useTranslations('common');
   const [grade, setGrade] = useState(
     submission?.grade === null || submission?.grade === undefined ? '' : String(submission.grade)
   );
@@ -64,11 +65,26 @@ export default function SubmissionReviewForm({ submission, maxScore, onSubmit, o
           <Input
             id={`status-${submission.id}`}
             label={t('reviewStatus')}
-            value={formatStatusLabel(submission.status)}
+            value={formatStatusLabel(submission.status, tCommon)}
             disabled
             readOnly
           />
         </div>
+
+        {submission?.attachmentUrl ? (
+          <p className="form-hint-text">
+            <a
+              className="resource-link"
+              href={submission.attachmentUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t('reviewAttachmentLink', {
+                name: submission.attachmentName || t('reviewAttachmentDefault')
+              })}
+            </a>
+          </p>
+        ) : null}
 
         <Input
           id={`feedback-${submission.id}`}

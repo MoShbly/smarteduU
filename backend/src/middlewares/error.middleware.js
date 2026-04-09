@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import multer from 'multer';
 
 import ApiError from '../utils/ApiError.js';
 
@@ -36,6 +37,14 @@ export const errorHandler = (error, req, res, next) => {
   if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
     statusCode = 401;
     message = 'Invalid or expired authentication token';
+  }
+
+  if (error instanceof multer.MulterError) {
+    statusCode = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    message =
+      error.code === 'LIMIT_FILE_SIZE'
+        ? 'Uploaded file exceeds the 10 MB limit'
+        : 'File upload could not be processed';
   }
 
   res.status(statusCode).json({
